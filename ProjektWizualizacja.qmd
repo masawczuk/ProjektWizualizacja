@@ -1,0 +1,1259 @@
+---
+title: "Analiza wpływu różnych czynników na ilość samobójstw"
+author: "Malwina Sawczuk"
+format: 
+  html: 
+    toc: true
+    toc-title: "Table of contents"
+    toc-depth: 2
+    toc-location: left
+    number-sections: true
+editor: visual
+echo: false
+warning: false
+message: false
+---
+
+# Wprowadzenie do tematu
+
+Problem samobójstw pozostaje jednym z najpoważniejszych wyzwań społecznych i zdrowotnych na całym świecie. Zrozumienie wpływu czynników, takich jak rozwój gospodarczy, poziom życia czy struktura demograficzna, jest kluczowe dla identyfikacji grup szczególnie narażonych. Celem projektu jest zbadanie zależności między wskaźnikami samobójstw a różnorodnymi czynnikami demograficznymi, takimi jak wiek, płeć i przynależność do określonej generacji, oraz gospodarczymi, w tym PKB per capita i poziomem rozwoju społecznego (HDI). Analiza obejmuje różne kraje i okresy, a jej wyniki mogą zostać wykorzystane do opracowywania polityk prewencyjnych, wsparcia psychologicznego oraz działań edukacyjnych w różnych regionach.
+
+W ramach badania postawiono kluczowe pytania: czy płeć, wiek i generacja wpływają na liczbę samobójstw? Jakie kraje charakteryzują się najwyższymi, a jakie najniższymi wskaźnikami samobójstw, i czy te różnice można powiązać z poziomem rozwoju społeczno-ekonomicznego? Jak zmieniały się wskaźniki samobójstw na przestrzeni lat w zależności od regionu geograficznego?
+
+Postawiono również hipotezy. Zakłada się, że mężczyźni mają wyższe wskaźniki samobójstw niż kobiety, zwłaszcza w młodszych grupach wiekowych. Przewiduje się również, że kraje o niższym poziomie rozwoju społecznego i gospodarczego, mierzonego za pomocą HDI i PKB per capita, cechują się wyższymi wskaźnikami samobójstw. Dodatkowo zakłada się, że starsze generacje, takie jak „Silent Generation” czy „G.I. Generation”, są bardziej narażone na samobójstwa niż młodsze grupy, takie jak „Millennials” czy „Generation Z”.
+
+# Poznanie danych od podstaw
+
+Projekt bazuje na zestawie danych dostępnych na platformie Kaggle: [Suicides Rate 1985 to 2016](https://www.kaggle.com/datasets/sadiqshah/suicides-rate-1985-to-2016). Zbiór ten obejmuje 12 zmiennych oraz 27 820 obserwacji. Ważnymi kolumnami są:
+
+1.  **country** - kraj
+
+2.  **year** - rok
+
+3.  **sex** - płeć
+
+4.  **age** - wiek
+
+5.  **generation** - generacja
+
+6.  **population** - populacja
+
+7.  **gdp_per_capita** - PKB per capita
+
+8.  **HDI.for.year** - wskaźnik rozwoju społecznego
+
+9.  **suicides_no** - liczba samobójstw
+
+```{r}
+
+#Dodanie bibliotek
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(reshape2)
+library(corrplot)
+library(RColorBrewer)
+library(rio)
+library(kableExtra)
+library(leaflet)
+library(sp)
+library(rworldmap)
+library(plotly)
+library(shiny)
+library(terra)
+library(geodata)
+library(broom)
+
+```
+
+```{r}
+
+#Wczytanie danych
+Dataset <- read.csv("master.csv")
+Dataset <- data.frame(Dataset)
+
+#Wyświetlenie 4 pierwszych wierszy
+head(Dataset, 4) %>%
+  kable(format = "html", caption = "Przykładowe dane", ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) 
+
+```
+
+# Przygotowanie do analizy
+
+W procesie wstępnego przetwarzania danych wykonano między innymi:
+
+1.  Analiza podstawowych statystyk
+
+    Przeanalizowano liczbę obserwacji, średnią, medianę, minimum i maksimum oraz zidentyfikowano brakujące wartości. Braki danych stwierdzono wyłącznie w kolumnie HDI.for.year (Human Development Index). Zostały one zamienione bardziej aktualnymi danymi z innego datasetu.
+
+2.  Utworzenie nowych zmiennych:
+
+-   Kolumna continents: przypisano kraje do odpowiednich kontynentów
+
+3.  Usunięcie kolumny country.year.
+
+4.  Konwersja zmiennych tekstowych
+
+5.  Usunięcie roku 2016.
+
+6.  Zamiana niektórych nazw państw.
+
+```{r}
+#| include: false
+summary(Dataset)
+```
+
+```{r}
+#| include: false
+# Sprawdzenie liczby braków danych w każdej kolumnie
+braki <- colSums(is.na(Dataset))
+print(braki)
+```
+
+```{r}
+
+
+#Usuniecie brakow - uzupelnienie kolumny hdi zaktualizowanymi danymi ze strony https://hdr.undp.org - plik HDI
+
+HDI <- read.csv("HDI.csv")
+
+#Zrobienie listy krajów
+countries <- unique(Dataset$country)
+
+#Usunięcie wierszy, w których kraj nie znajduje się na liście
+HDI <- HDI[HDI$country %in% countries, ]
+
+#Usuniecie pierwszej kolumny
+HDI <- HDI[, -1]
+
+#Pętla przez lata od 1990 do 2016
+for (year in 1990:2016) {
+  for (country in countries) {
+    column_name <- paste0("hdi_", year)
+    
+    #Sprawdzenie, czy dane dla danego kraju i roku są dostępne w obu
+    hdi_value <- HDI[[column_name]][HDI$country == country]
+    
+    #Jeżeli wartości są, to zaktualizuj Dataset
+    if (length(hdi_value) > 0) {
+      Dataset$HDI.for.year[Dataset$country == country & Dataset$year == year] <- hdi_value
+    } 
+  }
+}
+```
+
+```{r}
+#Usunięcie kolumny contry.year
+Dataset <- Dataset[, -8]
+
+```
+
+```{r}
+#Usunięcie wierszy z rokiem 2016
+Dataset <- Dataset %>%
+  filter(year != 2016)
+```
+
+```{r}
+#Zamiana nazw krajów
+Dataset <- Dataset %>%
+  mutate(country = recode(country,
+                          "Bahamas" = "The Bahamas",
+                          "Cabo Verde" = "Cape Verde",
+                          "Republic of Korea" = "South Korea",
+                          "Russian Federation" = "Russia",
+                          "Serbia" = "Republic of Serbia",
+                          "United States" = "United States of America"))
+```
+
+```{r}
+
+#Przypisanie krajów do kontynentów
+Dataset <- Dataset %>%
+  mutate(continents = case_when(
+    country %in% c("Albania", "Andorra", "Austria", "Belarus", "Belgium", "Bosnia and Herzegovina", "Bulgaria", "Croatia", "Czech Republic", "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", "Iceland", "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", "Moldova", "Monaco", "Montenegro", "Netherlands", "Norway", "Poland", "Portugal", "Romania", "Russia", "San Marino", "Republic of Serbia", "Slovakia", "Slovenia", "Spain", "Sweden", "Switzerland", "Ukraine", "United Kingdom", "Russia") ~ "Europe",
+    country %in% c("Armenia", "Azerbaijan", "Bahrain", "Bangladesh", "Bhutan", "Brunei Darussalam", "Cambodia", "China", "Cyprus", "Georgia", "India", "Indonesia", "Iran", "Iraq", "Israel", "Japan", "Jordan", "Kazakhstan", "Kuwait", "Kyrgyzstan", "Laos", "Lebanon", "Malaysia", "Maldives", "Mongolia", "Myanmar", "Nepal", "North Korea", "Oman", "Pakistan", "Palestine", "Philippines", "Qatar", "Saudi Arabia", "Singapore", "South Korea", "Sri Lanka", "Syria", "Tajikistan", "Thailand", "Timor-Leste", "Turkey", "Turkmenistan", "United Arab Emirates", "Uzbekistan", "Vietnam", "Yemen", "Macau", "Russia") ~ "Asia",
+    country %in% c("Antigua and Barbuda", "The Bahamas", "Barbados", "Belize", "Canada", "Costa Rica", "Cuba", "Dominica", "Dominican Republic", "El Salvador", "Grenada", "Guatemala", "Haiti", "Honduras", "Jamaica", "Mexico", "Nicaragua", "Panama", "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Trinidad and Tobago", "United States of America", "Puerto Rico", "Saint Vincent and Grenadines") ~ "North America",
+    country %in% c("Argentina", "Bolivia", "Brazil", "Chile", "Colombia", "Ecuador", "Guyana", "Paraguay", "Peru", "Suriname", "Uruguay", "Venezuela", "Aruba") ~ "South America",
+    country %in% c("Algeria", "Angola", "Benin", "Botswana", "Burkina Faso", "Burundi", "Cape Verde", "Cameroon", "Central African Republic", "Chad", "Comoros", "Congo", "Djibouti", "Egypt", "Equatorial Guinea", "Eritrea", "Eswatini", "Ethiopia", "Gabon", "Gambia", "Ghana", "Guinea", "Guinea-Bissau", "Ivory Coast", "Kenya", "Lesotho", "Liberia", "Madagascar", "Malawi", "Mali", "Mauritania", "Mauritius", "Morocco", "Mozambique", "Namibia", "Niger", "Nigeria", "Rwanda", "Sao Tome and Principe", "Senegal", "Seychelles", "Sierra Leone", "Somalia", "South Africa","South Sudan", "Sudan", "Tanzania", "Togo", "Tunisia", "Uganda", "Zambia", "Zimbabwe") ~ "Africa",
+    country %in% c("Australia", "Fiji", "Kiribati", "Marshall Islands", "Micronesia", "Nauru", "New Zealand", "Palau", "Papua New Guinea", "Samoa", "Solomon Islands", "Tonga", "Tuvalu", "Vanuatu") ~ "Oceania",
+    country == "Antarctica" ~ "Antarctica",
+    TRUE ~ "Unknown" # Dla krajów, które nie pasują do żadnej kategorii
+  )) 
+```
+
+```{r}
+#| include: false
+
+#Definicja przedziałów według kwantyli
+quantiles <- quantile(Dataset$suicides_no, probs = c(0, 0.25, 0.5, 0.75, 1))
+labels <- c("Mało", "Średnio", "Dużo")
+
+#Podstawowe informacje o kolumnie 'suicides_no'
+summary_stats <- summary(Dataset$suicides_no)
+cat("Podstawowe statystyki dla kolumny 'suicides_no':\n")
+print(summary_stats)
+cat("Kwantyle:\n")
+print(quantiles)
+
+cat("Mało samobójstw: <=25, Średnia ilość samobójstw >25 i <=132, Dużo samobójstw >132")
+
+```
+
+```{r}
+#Dostosowanie typów zmiennych - zmienienie typów tekstowych na factor 
+Dataset <- Dataset %>%
+  mutate(country = as.factor(country),
+         sex= as.factor(sex),
+         age = as.factor(age),
+         gpy= as.factor(gpy),
+         generation=as.factor(generation),
+         continents=as.factor(continents),
+  )
+```
+
+```{r}
+#Wyświelenie wierszy po zmianiach
+head(Dataset, 4) %>%
+  kable(format = "html", caption = "Dane po przetworzeniu", ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) 
+
+```
+
+# Samobójstwa na świecie: globalna perspektywa
+
+## Zmiana liczby samobójstw w czasie
+
+Analiza liczby samobójstw w poszczególnych latach ukazuje zmienność trendu w czasie. Wzrost w latach 90. może być związany z globalnymi kryzysami, jak recesje ekonomiczne, konflikty społeczne, wojna w Zatoce Perskiej, kryzys w Japonii czy problemy Europejskiego Systemu Walutowego. Napięcia te pogłębiały poczucie niepewności, zwłaszcza w krajach przechodzących transformację gospodarczą po upadku komunizmu. Spadek liczby samobójstw po 1995 roku może wynikać z poprawy sytuacji społeczno-ekonomicznej, wzrostu świadomości na temat zdrowia psychicznego i lepszego wsparcia społecznego. Stabilizacja w regionach dotkniętych kryzysami, np. w Ameryce Łacińskiej po kryzysie meksykańskim, także mogła wpłynąć na te zmiany.
+
+```{r}
+#Wybranie danych
+summary_suicides_by_year <- Dataset %>%
+  group_by(year) %>%
+  summarise(suicide_capita = round((sum(suicides_no) / sum(population)) * 100000, 2), .groups = 'drop')
+
+#Wykres liniowy z punktami
+plot_ly(
+  data = summary_suicides_by_year,
+  x = ~year,
+  y = ~suicide_capita,
+  type = 'scatter',
+  mode = 'lines+markers',  
+  line = list(width = 2, color = '#7AD4F5'),  
+  marker = list(size = 8, color = '#7AD4F5', symbol = 'circle')  
+) %>%
+  layout(
+    title = list(
+      text = 'Liczba samobójstw w latach 1985-2015'
+    ),
+    xaxis = list(
+      title = 'Rok'
+    ),
+    yaxis = list(
+      title = 'Liczba samobójstw na 100 000 mieszkańców'
+    )
+  )
+```
+
+## Mężczyźni kontra kobiety: kto jest bardziej zagrożony?
+
+Dane wskazują znaczącą dysproporcję między płciami – liczba samobójstw jest zdecydowanie wyższa wśród mężczyzn niż u kobiet. Wynika to prawdopodobnie m.in. z presji społecznej, trudności w przeżywaniu kryzysów emocjonalnych i niechęci do szukania pomocy. Mężczyźni rzadziej diagnozują i leczą depresję, co pogłębia problem, szczególnie w połączeniu z nadużywaniem alkoholu, bezdomnością i samotnością.
+
+```{r}
+
+#Wybranie danych
+sex_summary <- Dataset %>% 
+  group_by(sex) %>% 
+  summarise(total_suicides = sum(suicides_no), 
+            suicide_capita = round((sum(suicides_no)/sum(population))*100000, 2))
+
+#Stworzenie palety kolorów
+myPalette <- c("#F3CCF5", "#7AD4F5","#010104","#f0f820","#c4a1c7","#541fa2","#da5b69","#a73084","#0e1687","#fdba81","#fbfbbe","#8a23a5","#fdbc2a","#f57f51","#241150","#d2426e","#5e197e") 
+
+#Wykres kołowy - płeć
+plot_ly(sex_summary, 
+        labels = ~sex, 
+        values = ~suicide_capita, 
+        type = 'pie', 
+        textinfo = 'label+percent', 
+        hoverinfo = 'label+percent+value', 
+        marker = list(colors = myPalette)) %>%
+  layout(title = "Średnia liczba samobójstw na 100k ludności według płci")
+```
+
+## Wpływ wieku na statystyki samobójstw
+
+W latach 1985-2015 najwyższy wskaźnik samobójstw odnotowano w grupie wiekowej 75+, która odpowiada za 29,3% wszystkich przypadków. Może to być związane z problemami charakterystycznymi dla zaawansowanego wieku, takimi jak samotność, choroby przewlekłe czy brak wsparcia społecznego.
+
+Istotny odsetek samobójstw dotyczy również grup wiekowych 55-74 lata (22,5%) oraz 35-54 lata (20,4%). W tych grupach przyczynami mogą być m.in. stres zawodowy, problemy rodzinne czy zdrowotne. Samobójstwa mogą też być spowodowane kryzysami wieku średniego i starczego.
+
+Młodsze grupy wiekowe, 25-34 lata oraz 15-24 lata, mają mniejsze wskaźniki samobójstw, wynoszące odpowiednio 15,9% i 11,2%. Jednak warto zwrócić uwagę na wyzwania, z jakimi mierzą się młodzi ludzie, takie jak presja społeczna, trudności edukacyjne czy początek kariery zawodowej.
+
+Najniższy odsetek samobójstw odnotowano w grupie dzieci w wieku 5-14 lat, co stanowi zaledwie 0,74%.
+
+```{r}
+#Wybranie danych
+age_summary <- Dataset %>% 
+  group_by(age) %>% 
+  summarise(total_suicides = sum(suicides_no), 
+            suicide_capita = round((sum(suicides_no)/sum(population))*100000, 2))
+
+#Wykres kołowy - wiek
+plot_ly(age_summary, 
+        labels = ~age, 
+        values = ~suicide_capita, 
+        type = 'pie', 
+        textinfo = 'label+percent', 
+        hoverinfo = 'label+percent+value', 
+        marker = list(colors = myPalette)) %>%
+  layout(title = "Liczba samobójstw według grup wiekowych w latach 1985-2015")
+
+
+```
+
+## Liczba samobójstw ze względu na płeć i wiek
+
+Wykres pokazuje wyraźne różnice w liczbie samobójstw. W każdej analizowanej grupie wiekowej liczba samobójstw jest znacznie wyższa wśród mężczyzn niż wśród kobiet, a różnica ta szczególnie narasta w starszych grupach wiekowych (55–74 lata i 75+ lat). Wskaźniki samobójstw rosną wraz z wiekiem, osiągając najwyższe wartości w grupie osób 75+ lat, co wskazuje na szczególną podatność tej grupy na czynniki prowadzące do samobójstw. Najniższe wartości odnotowano wśród dzieci i młodzieży (5–14 lat), natomiast w grupie mężczyzn istotny szczyt występuje w wieku 35–54 lata.
+
+```{r}
+#Wybranie danych
+summary_suicides_sex_age <- Dataset %>%
+  group_by(age, sex) %>%
+  summarise(total_suicides = sum(suicides_no), 
+            suicide_capita = round((sum(suicides_no)/sum(population))*100000, 2), .groups='drop' )
+
+#Wykres wz. wieku i płci
+plot_ly(
+  data = summary_suicides_sex_age, 
+  x = ~age, 
+  y = ~suicide_capita, 
+  color = ~sex, 
+  type = 'bar',
+  colors = myPalette
+) %>%
+  layout(
+    title = 'Liczba samobójstw ze względu na wiek i płeć w latach 1985-2015',
+    xaxis = list(title = 'Grupa wiekowa', tickangle = 45),
+    yaxis = list(title = 'Liczba samobójstw na 100 000 mieszkańców'),
+    legend = list(title = list(text = 'Płeć'))
+  )
+
+```
+
+## Generacje a skłonność do samobójstw
+
+Lata urodzeń poszczególnych grup pokoleniowych:
+
+-   G.I. Generation (urodzeni przed 1928 r.)
+
+-   Silent Generation (1928–1945)
+
+-   Baby Boomers (1946–1964)
+
+-   Pokolenie X (1965–1980)
+
+-   Millenialsi (1981–1996)
+
+-   Pokolenie Z (1997–2012)
+
+Analiza wykresów pokazuje, że najwyższe wskaźniki samobójstw występowały wśród G.I. Generation (23,99) i Silent Generation (19,32), szczególnie w grupach wiekowych 75+ lat. Najniższe wartości odnotowano wśród Generation Z, co wynika z młodego wieku tej grupy. Mężczyźni mają znacznie wyższe wskaźniki samobójstw niż kobiety we wszystkich generacjach, zwłaszcza w starszych. Samobójstwa są też bardziej powszechne w starszych generacjach i wśród mężczyzn, a młodsze pokolenia charakteryzują się niższymi wskaźnikami z uwagi na krótszy czas obserwacji.
+
+```{r}
+#Wybranie danych
+generation_summary <- Dataset %>% 
+  group_by(generation) %>% 
+  summarise(total_suicides = sum(suicides_no),
+    suicide_capita = round((sum(suicides_no) / sum(population)) * 100000, 2))
+
+#Wykres - generacja
+plot_ly(
+  data = generation_summary,
+  x = ~generation,
+  y = ~suicide_capita,
+  type = 'bar',
+  text = ~suicide_capita,  
+  textposition = 'outside',  
+  marker = list(color = myPalette)
+) %>%
+  layout(
+    title = list(
+      text = 'Liczba samobójstw według generacji w latach 1985-2015'
+    ),
+    xaxis = list(
+      title = 'Generacja',
+      tickangle = 45
+    ),
+    yaxis = list(
+      title = 'Liczba samobójstw na 100 000 mieszkańców'
+    )
+  )
+
+```
+
+```{r}
+#Wybranie danych
+generation_summary <- Dataset %>%
+  group_by(generation, age) %>%
+  summarise(
+    total_suicides = sum(suicides_no, na.rm = TRUE),  # Dodano na.rm = TRUE, aby uniknąć błędów z brakującymi wartościami
+    suicide_capita = round((sum(suicides_no, na.rm = TRUE) / sum(population, na.rm = TRUE)) * 100000, 2), 
+    .groups = 'drop'
+  )
+
+#Wykres - generacja i wiek
+plot_ly(
+  data = generation_summary,
+  x = ~generation, 
+  y = ~suicide_capita, 
+  color = ~age, 
+  type = 'bar',
+  colors = myPalette
+) %>%
+  layout(
+    title = 'Liczba samobójstw ze względu na generację i wiek w latach 1985-2015',
+    xaxis = list(title = 'Pokolenie', tickangle = 45), 
+    yaxis = list(title = 'Liczba samobójstw na 100 000 mieszkańców'),
+    legend = list(title = list(text = 'Wiek'))
+  )
+```
+
+```{r}
+
+#Wybranie danych
+generation_summary <- Dataset %>%
+  group_by(generation, sex) %>%
+  summarise(
+    total_suicides = sum(suicides_no, na.rm = TRUE),  # Dodano na.rm = TRUE, aby uniknąć błędów z brakującymi wartościami
+    suicide_capita = round((sum(suicides_no, na.rm = TRUE) / sum(population, na.rm = TRUE)) * 100000, 2), 
+    .groups = 'drop'
+  )
+
+#Wykres - generacja i płeć
+plot_ly(
+  data = generation_summary,  
+  x = ~generation, 
+  y = ~suicide_capita, 
+  color = ~sex, 
+  type = 'bar',
+  colors = myPalette
+) %>%
+  layout(
+    title = 'Liczba samobójstw ze względu na generację i płeć w latach 1985-2015',
+    xaxis = list(title = 'Pokolenie', tickangle = 45),
+    yaxis = list(title = 'Liczba samobójstw na 100 000 mieszkańców'),
+    legend = list(title = list(text = 'Płeć'))
+  )
+```
+
+# Samobójstwa w poszczególnych latach
+
+## Samobójstwa w podziale na wiek i lata
+
+Współczesny kult młodości sprawia, że osoby starsze, zwłaszcza w dużych miastach, często nie są w pełni szanowane, co w połączeniu z samotnością, zakończeniem pracy zawodowej, trudnościami finansowymi i pogarszającym się zdrowiem zwiększa ryzyko samobójstw. W latach 1985-2015 najwyższe wskaźniki samobójstw odnotowano właśnie w grupie 75+, choć po 2000 roku widoczny jest spadek. Grupy 55-74 i 35-54 również wykazują wysokie wartości, ale stabilizują się w ostatnich latach.
+
+Młodsze grupy, takie jak 15-24 i 25-34 lata, mają niższe wskaźniki, a dzieci w wieku 5-14 lat najniższe. Ogólnie widoczna jest tendencja spadkowa we wszystkich grupach wiekowych, co może wynikać z poprawy wsparcia psychologicznego i większej świadomości społecznej.
+
+```{r}
+
+#Wybranie danych
+summary_suicides_by_age <- Dataset %>%
+  group_by(year, age) %>%
+  summarise(suicide_capita = round((sum(suicides_no)/sum(population))*100000,2), .groups = 'drop')
+
+#Wykres liniowy z punktami - rok, grupa wiekowa
+plot_ly(
+  data = summary_suicides_by_age, 
+  x = ~year, 
+  y = ~suicide_capita, 
+  color = ~age, 
+  type = 'scatter', 
+  mode = 'lines+markers',  
+  line = list(width = 2),  
+  marker = list(size = 6, symbol = 'circle'),  
+  colors = myPalette
+) %>%
+  layout(
+    title = 'Liczba samobójstw według roku i grupy wiekowej',
+    xaxis = list(title = 'Rok'),
+    yaxis = list(title = 'Liczba samobójstw na 100 000 mieszkańców'),
+    legend = list(title = list(text = 'Grupa wiekowa'))
+  )
+
+```
+
+## Rok, płeć i statystyki samobójstw
+
+Wskaźnik dla mężczyzn jest znacząco wyższy niż dla kobiet przez cały analizowany okres. Po roku 1995 liczba samobójstw wśród mężczyzn zaczęła spadać, choć nadal pozostaje na wysokim poziomie. W przypadku kobiet wartości są stabilne i znacznie niższe, z lekką tendencją spadkową w ostatnich latach.
+
+```{r}
+
+#Wybranie danych
+summary_suicides_by_year <- Dataset %>%
+  group_by(year, sex) %>%
+  summarise(suicide_capita = round((sum(suicides_no)/sum(population))*100000,2), .groups = 'drop')
+
+#Wykres liniowy z punktami - rok, płeć
+plot_ly(
+  data = summary_suicides_by_year, 
+  x = ~year, 
+  y = ~suicide_capita, 
+  color = ~sex, 
+  type = 'scatter', 
+  mode = 'lines+markers', 
+  line = list(width = 2),  
+  marker = list(size = 6, symbol = 'circle'),  
+  colors = myPalette 
+) %>%
+  layout(
+    title = 'Liczba samobójstw według roku i płci',
+    xaxis = list(title = 'Rok'),
+    yaxis = list(title = 'Liczba samobójstw na 100 000 mieszkańców'),
+    legend = list(title = list(text = 'Płeć'))
+  )
+```
+
+## Spojrzenie na samobójstwa w poszczególnych latach i grupach wiekowych
+
+Najwyższy wskaźnik obserwowany jest wśród osób powyżej 75. roku życia, chociaż od lat 90. liczba samobójstw w tej grupie systematycznie spada. Wysokie wartości utrzymują się także w grupie wiekowej 55–74 lata.
+
+Dla młodszych grup wiekowych (15–24 oraz 25–34 lata) wskaźnik samobójstw jest stabilny i znacznie niższy, podczas gdy grupa 5–14 lat charakteryzuje się najniższymi wartościami w całym okresie. Ogólnie widoczna jest tendencja spadkowa w starszych grupach wiekowych, przy stabilizacji w młodszych.
+
+```{r}
+
+#Wybranie danych
+summary_suicides_by_age <- Dataset %>%
+  group_by(year, age) %>%
+  summarise(suicide_capita = round((sum(suicides_no)/sum(population))*100000, 2), .groups = 'drop')
+
+#Wykres liniowy z punktami - rok, grupa wiekowa
+plot_ly(
+  data = summary_suicides_by_age, 
+  x = ~year, 
+  y = ~suicide_capita, 
+  color = ~age, 
+  type = 'scatter', 
+  mode = 'lines+markers',  
+  line = list(width = 2),  
+  marker = list(size = 6, symbol = 'circle'),
+  colors = myPalette 
+) %>%
+  layout(
+    title = 'Liczba samobójstw według roku i grupy wiekowej',
+    xaxis = list(title = 'Rok'),
+    yaxis = list(title = 'Liczba samobójstw na 100 000 mieszkańców'),
+    legend = list(title = list(text = 'Grupa wiekowa'))
+  )
+```
+
+# Mapa samobójstw: kraje pod lupą
+
+## Historia samobójstw od 1985 do 2015
+
+Największą liczbę samobójstw odnotowano w Europie Wschodniej, szczególnie w krajach byłego ZSRR, oraz w niektórych krajach Ameryki Południowej i Północnej.
+
+Z kolei najniższe wartości odnotowano w regionach Afryki i na Bliskim Wschodzie. Różnice te mogą wynikać z odmiennych uwarunkowań kulturowych, społecznych oraz ekonomicznych.
+
+```{r}
+#Dane geograficzne
+map_data <- getMap(resolution = "low") #Pobranie danych
+
+#Wybranie danych
+suicides_by_country <- Dataset %>%
+  group_by(country) %>%
+  summarise(suicide_capita = round((sum(suicides_no)/sum(population))*100000, 2),
+    .groups = 'drop')
+
+#Dopasowanie danych do mapy
+map_data@data <- map_data@data %>%
+  left_join(suicides_by_country, by = c("ADMIN" = "country"))
+
+#Zamiana na leaflet
+map_data_sp <- spTransform(map_data, CRS("+proj=longlat +datum=WGS84"))
+
+#Ustawienie podzialu kolorow
+bins <- c(0, 5, 10, 15, 20,30, Inf)
+palette <- colorBin("magma", domain = map_data_sp@data$suicide_capita, bins = bins)
+
+#Wykres - mapa
+leaflet(data = map_data_sp) %>%
+  addTiles() %>%
+  addPolygons(
+    fillColor = ~palette(suicide_capita),
+    weight = 1,
+    opacity = 1,
+    color = "white",
+    dashArray = "3",
+    fillOpacity = 0.7,
+    highlight = highlightOptions(
+      weight = 3,
+      color = "#666",
+      dashArray = "",
+      fillOpacity = 0.7,
+      bringToFront = TRUE
+    ),
+    label = ~paste(ADMIN, "<br>", "Samobójstwa: ", suicide_capita),
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "15px",
+      direction = "auto"
+    )
+  ) %>%
+  addLegend(pal = palette, values = ~suicide_capita, opacity = 0.7, title = "Liczba samobójstw", position = "bottomright") %>%
+  addControl(
+    html = "<strong>Liczba samobójstw w latach 1985-2015</strong>", 
+    position = "topright", 
+    className = "map-title"
+  )
+
+```
+
+## Płeć a lokalizacja geograficzna
+
+W większości krajów odsetek samobójstw wśród mężczyzn jest znacznie wyższy niż wśród kobiet. Najwyższe wskaźniki samobójstw wśród mężczyzn odnotowano w krajach takich jak Litwa, Rosja i Białoruś, co wskazuje na szczególnie wysokie ryzyko w tych regionach. Natomiast kraje na karaibach, takie jak Dominika czy Saint Kitts i Nevis, charakteryzują się zerowym zachowaniem samobójczym w przeliczeniu na 100 tys. mieszkańców. Warto również zwrócić uwagę, że różnice między płciami są widoczne we wszystkich krajach,
+
+```{r}
+#Wybranie danych
+country_bar_sex <- Dataset %>%
+  select(country, sex, suicides_no, population) %>%
+  group_by(country, sex) %>%
+  summarise(
+    suicide_capita = round((sum(suicides_no) / sum(population)) * 100000, 2),
+    .groups = 'drop'
+  )
+
+#Wykres - liczba samobójstw, kraj, płeć
+plot_ly(
+  data = country_bar_sex,
+  y = ~country,
+  x = ~suicide_capita, 
+  color = ~sex, 
+  colors = myPalette, 
+  type = 'bar',
+  orientation = 'h', 
+  text = ~paste(
+    'Kraj: ', country,
+    '<br>Płeć: ', sex,
+    '<br>Samobójstwa na 100K: ', suicide_capita
+  ),
+  hoverinfo = 'text'
+) %>%
+  layout(
+    title = list(text = 'Liczba samobójstw ze względu na kraj i płeć'),
+    yaxis = list(
+      title = 'Kraj',
+      categoryorder = 'total ascending', #sortowanie
+      automargin = TRUE,
+      tickmode = "linear" 
+    ),
+    xaxis = list(title = 'Samobójstwa na 100k mieszkańców'),
+    barmode = 'stack',
+    legend = list(title = list(text = 'Płeć')),
+    height = max(400, length(unique(country_bar_sex$country)) * 20) #Stary sposób ustawiania wysokości aby lepiej wyglądał zrenderowany
+  )
+```
+
+## Kraje i wpływ wieku na samobójstwa
+
+Najwyższe wartości dotyczą przede wszystkim krajów Europy Wschodniej, takich jak Litwa, Rosja czy Białoruś, a także Sri Lanki. Najbardziej narażoną grupą wiekową są osoby starsze (75+), co wskazuje na szczególne wyzwania w zakresie wsparcia seniorów. W niektórych krajach, jak Sri Lanka i Kazachstan, zauważono także stosunkowo wysokie wskaźniki wśród młodszych grup wiekowych (25-34 lata). Kraje o niskich wskaźnikach, takie jak Jamajka, Malediwy czy Kuwejt, wyróżniają się znacznie niższym zagrożeniem w każdej grupie wiekowej. Wyniki podkreślają potrzebę dostosowania działań profilaktycznych do specyfiki regionalnej oraz wieku populacji.
+
+```{r}
+#Wybranie danych
+country_bar_age <- Dataset %>%
+  select(country, age, suicides_no, population) %>%
+  group_by(country, age) %>%
+  summarise(
+    suicide_capita = round((sum(suicides_no) / sum(population)) * 100000, 2),
+    .groups = 'drop' 
+  )
+
+#Wykres - liczba samobójstw, kraj, wiek
+plot_ly(
+  data = country_bar_age,
+  y = ~country, 
+  x = ~suicide_capita, 
+  color = ~age, 
+  colors = myPalette,
+  type = 'bar',
+  orientation = 'h', 
+  text = ~paste(
+    'Kraj: ', country,
+    '<br>Wiek: ', age,
+    '<br>Samobójstwa na 100k: ', suicide_capita
+  ), 
+  hoverinfo = 'text'
+) %>%
+  layout(
+    title = list(text = 'Liczba samobójstw ze względu na kraj i wiek'),
+    yaxis = list(
+      title = 'Kraj', 
+      categoryorder = 'total ascending',
+      automargin = TRUE,
+      tickmode = "linear"
+    ),
+    xaxis = list(
+      title = 'Samobójstwa na 100k mieszkańców'
+    ),
+    barmode = 'stack',
+    legend = list(title = list(text = 'Grupa wiekowa')),
+    height = max(400, length(unique(country_bar_sex$country)) * 20) #Stary sposób ustawiania wysokości aby lepiej wyglądał zrenderowany
+  )
+
+```
+
+```{r}
+#| include: false
+
+#Interfejs
+ui <- fluidPage(
+  titlePanel("Mapa samobójstw na świecie"),
+  sidebarLayout(
+    sidebarPanel(
+      sliderInput(
+        "selected_year",
+        "Wybierz rok:",
+        min = min(Dataset$year, na.rm = TRUE),
+        max = max(Dataset$year, na.rm = TRUE),
+        value = min(Dataset$year, na.rm = TRUE),
+        step = 1,
+        sep = ""
+      )
+    ),
+    mainPanel(
+      leafletOutput("map")
+    )
+  )
+)
+
+#Serwer
+server <- function(input, output, session) {
+  #Przygotowanie danych mapowych
+  map_data <- getMap(resolution = "low")
+  
+  #Render mapy
+  output$map <- renderLeaflet({
+    req(input$selected_year)  #Wybranie roku
+    
+    #Wybranie danych
+    filtered_data <- Dataset %>%
+      filter(year == input$selected_year) %>%
+      group_by(country) %>%
+      summarise(total_suicides = sum(suicides_no, na.rm = TRUE), .groups = 'drop')
+    
+    #Dopasowanie danych do mapy
+    map_data@data <- map_data@data %>%
+      left_join(filtered_data, by = c("ADMIN" = "country"))
+    
+    #Kolory
+    bins <- c(0, 100, 1000, 10000, 20000, 30000, Inf)
+    palette <- colorBin("magma", domain = map_data@data$total_suicides, bins = bins, na.color = "transparent")
+    
+    #Mapa
+    leaflet(data = map_data) %>%
+      addTiles() %>%
+      addPolygons(
+        fillColor = ~palette(total_suicides),
+        weight = 1,
+        opacity = 1,
+        color = "white",
+        dashArray = "3",
+        fillOpacity = 0.7,
+        highlight = highlightOptions(
+          weight = 3,
+          color = "#666",
+          dashArray = "",
+          fillOpacity = 0.7,
+          bringToFront = TRUE
+        ),
+        label = ~paste(ADMIN, "<br>", "Samobójstwa: ", total_suicides),
+        labelOptions = labelOptions(
+          style = list("font-weight" = "normal", padding = "3px 8px"),
+          textsize = "15px",
+          direction = "auto"
+        )
+      ) %>%
+      addLegend(
+        pal = palette,
+        values = ~total_suicides,
+        opacity = 0.7,
+        title = "Liczba samobójstw",
+        position = "bottomright"
+      )
+  })
+}
+
+# Uruchomienie aplikacji
+shinyApp(ui = ui, server = server)
+
+```
+
+# Kontynenty w świetle statystyk
+
+## Samobójstwa: spojrzenie globalne i regionalne
+
+Wskaźniki samobójstw różnią się znacznie w zależności od kontynentu. Najwyższe wartości odnotowano na kontynentach rozwiniętych gospodarczo, co może wskazywać na złożony wpływ stresu związanego z wysokim tempem życia i oczekiwaniami społecznymi. Z kolei w regionach o silniejszych więziach społecznych i tradycyjnych strukturach rodzinnych wskaźniki są zauważalnie niższe.
+
+```{r}
+
+#Wybranie danych
+continent_summary <- Dataset %>% 
+  group_by(continents) %>% 
+  summarise(
+    suicide_capita = round((sum(suicides_no)/sum(population))*100000, 2),
+    .groups = 'drop'
+  )
+
+#Wykres - kontynenty 
+plot_ly(
+  data = continent_summary, 
+  x = ~continents, 
+  y = ~suicide_capita, 
+  type = "bar", 
+  marker = list(color = myPalette)
+) %>%
+  layout(
+    title = "Liczba samobójstw na 100 000 mieszkańców",
+    xaxis = list(title = "Kontynent"),
+    yaxis = list(title = "Liczba samobójstw")
+  )
+```
+
+```{r}
+
+#Import map krajów
+countries <- world(resolution = 5, path = "maps")
+
+#Import kodów krajów i kontynentów
+cntry_codes <- country_codes()
+
+#Połączenie tabeli i dodanie info. o kontynentach
+countries <- merge(countries, cntry_codes, by.x = "GID_0", by.y = "ISO3", all.x = TRUE)
+
+#Agregowanie w kontynenty
+continents <- aggregate(countries, by = "continent")
+
+#Dodanie danych suicide_capita z continent_summary do kontynentów
+continent_summary <- continent_summary %>%
+  rename(continent = continents)
+
+#Połączenie danych kontynentów z danymi wskaźnika
+continents$suicide_capita <- continent_summary$suicide_capita[match(continents$continent, continent_summary$continent)]
+
+#Przekonwertowanie SpatVector na sf
+continents_sf <- sf::st_as_sf(continents)
+
+palette <- colorFactor(palette = myPalette, domain = continents_sf$suicide_capita)
+
+#Stworzenie mapy
+leaflet(continents_sf) %>%
+  addTiles() %>%  
+  addPolygons(
+    fillColor = ~palette(suicide_capita),
+    color = "black",
+    weight = 1,
+    fillOpacity = 0.8,
+    label = ~paste0(continent, ": ", suicide_capita, " samobójstw/100,000"),
+    highlightOptions = highlightOptions(
+      weight = 3,
+      color = "blue",
+      bringToFront = TRUE
+    )
+  ) %>%
+  addLegend(
+    pal = palette,
+    values = ~suicide_capita,
+    title = "Samobójstwa na 100,000 osób",
+    position = "bottomright"
+  )
+
+
+```
+
+## Płeć i kontynenty
+
+Najwyższy wskaźnik samobójstw wśród mężczyzn odnotowano w Europie, gdzie liczba samobójstw wynosi ponad 30 na 100 000 mieszkańców, co znacząco przewyższa wyniki z innych regionów. Dla porównania, wskaźnik dla kobiet w Europie to około 5 na 100 000 mieszkańców.
+
+Podobne tendencje można zaobserwować w Azji, Oceanii i Ameryce Północnej, gdzie wskaźniki samobójstw wśród mężczyzn są również kilkukrotnie wyższe niż wśród kobiet. Najniższe wskaźniki dotyczą Afryki
+
+```{r}
+#Wybranie danych
+summary_suicides_continents_sex <- Dataset %>%
+  group_by(sex, continents) %>%
+  summarise(total_suicides = sum(suicides_no), 
+            suicide_capita = round((sum(suicides_no)/sum(population))*100000, 2),
+            .groups = 'drop')
+
+#Wykres - kontynent płeć
+plot_ly(
+  data = summary_suicides_continents_sex, 
+  x = ~continents, 
+  y = ~suicide_capita, 
+  color = ~sex,  
+  type = 'bar',
+  colors = myPalette 
+) %>%
+  layout(
+    title = 'Liczba samobójstw ze względu na płeć i kontynent',
+    xaxis = list(title = 'Kontynent', tickangle = 45),
+    yaxis = list(title = 'Liczba samobójstw na 100 000 mieszkańców'),
+    legend = list(title = list(text = 'Płeć'))
+  )
+```
+
+## Generacje w różnych regionach świata
+
+Dane ujawniają, że najwyższy wskaźnik samobójstw występuje w grupie wiekowej 75+ lat, szczególnie w Europie i Oceanii, gdzie osiąga wartości przekraczające 25 przypadków na 100 000 mieszkańców. Wysokie wskaźniki dotyczą także grupy wiekowej 55–74 lata, szczególnie w tych samych regionach.
+
+W młodszych grupach wiekowych, takich jak 15–24 oraz 25–34 lata, wskaźniki są wyraźnie niższe, jednak nadal zauważalne, zwłaszcza w Europie, Azji i Oceanii. Grupa wiekowa 5–14 lat wykazuje minimalną liczbę samobójstw we wszystkich kontynentach, co sugeruje, że samobójstwa w tej grupie wiekowej są rzadkie.
+
+Te dane wskazują, że ryzyko samobójstw wzrasta wraz z wiekiem, osiągając szczyt w najstarszych grupach wiekowych.
+
+```{r}
+#Wybranie danych
+summary_suicides_continents_age <- Dataset %>%
+  group_by(age, continents) %>%
+  summarise(total_suicides = sum(suicides_no), 
+            suicide_capita = round((sum(suicides_no)/sum(population))*100000, 2),
+            .groups = 'drop')
+
+#Wykres - kontynent, grupa wiekowa
+plot_ly(
+  data = summary_suicides_continents_age, 
+  x = ~age, 
+  y = ~suicide_capita, 
+  color = ~continents,  
+  type = 'bar',
+  colors = myPalette  
+) %>%
+  layout(
+    title = 'Liczba samobójstw ze względu na wiek i kontynent',
+    xaxis = list(title = 'Grupa wiekowa', tickangle = 45),
+    yaxis = list(title = 'Liczba samobójstw na 100 000 mieszkańców'),
+    legend = list(title = list(text = 'Kontynent'))
+  )
+
+```
+
+Wyniki pokazują, że najwyższe wskaźniki dotyczą starszych generacji, takich jak G.I. Generation i Silent Generation, szczególnie w Europie i Azji, gdzie wartości przekraczają 30 przypadków na 100 000 mieszkańców.
+
+Młodsze generacje, takie jak Millenials i Generation Z, cechują się znacznie niższymi wskaźnikami, jednak w niektórych regionach, takich jak Oceania i Europa, nadal obserwuje się zauważalne wartości. Generacja X i Boomers wykazują zróżnicowane wyniki, które wskazują na pośredni poziom ryzyka między starszymi a młodszymi generacjami.
+
+```{r}
+#Wybranie danych
+summary_suicides_continents_gen <- Dataset %>%
+  group_by(generation, continents) %>%
+  summarise(total_suicides = sum(suicides_no), 
+            suicide_capita = round((sum(suicides_no)/sum(population))*100000, 2),
+            .groups = 'drop')
+
+#Wykres - generacja, kontynent 
+plot_ly(
+  data = summary_suicides_continents_gen, 
+  x = ~continents, 
+  y = ~suicide_capita, 
+  color = ~generation,  
+  type = 'bar',
+  colors = myPalette  
+) %>%
+  layout(
+    title = 'Liczba samobójstw ze względu na generację i kontynent',
+    xaxis = list(title = 'Kontynent', tickangle = 45),
+    yaxis = list(title = 'Liczba samobójstw na 100 000 mieszkańców'),
+    legend = list(title = list(text = 'Generacja'))
+  )
+
+```
+
+# Czynniki ekonomiczne - wpływ na samobójstwa
+
+## PKB i liczba samobójstw: analiza zależności
+
+Można zauważyć, że kraje o niższym PKB na osobę (poniżej 20 tys. USD) charakteryzują się znaczną rozbieżnością w liczbie samobójstw – zarówno bardzo niskimi wskaźnikami, jak i wysokimi (do około 30-40 na 100 tys. mieszkańców). Natomiast w przypadku krajów o wyższym PKB (powyżej 40 tys. USD), widoczna jest tendencja do utrzymywania się liczby samobójstw na niższym poziomie, poniżej 15 na 100 tys. mieszkańców.
+
+Podział na kontynenty pokazuje, że Europa ma największą liczbę krajów o wysokim wskaźniku samobójstw, niezależnie od PKB. W regionach takich jak Afryka czy Ameryka Południowa dominują niskie wartości zarówno PKB, jak i liczby samobójstw. Wykres sugeruje, że wysoki dochód na osobę niekoniecznie wiąże się z wyższą liczbą samobójstw.
+
+```{r}
+#Wybranie danych
+country_mean_gdp <- Dataset %>%
+  group_by(country, continents) %>%
+  summarize(suicide_capita = (sum(as.numeric(suicides_no)) / sum(as.numeric(population))) * 100000, 
+            gdp_per_capita = mean(gdp_per_capita), 
+            .groups = "drop")  
+
+#Wykres korelacja PKB - samobójstwa na 100k
+plot_ly(country_mean_gdp, 
+        x = ~gdp_per_capita, 
+        y = ~suicide_capita, 
+        color = ~continents, 
+        type = 'scatter', 
+        mode = 'markers') %>%
+  layout(title = "Korelacja między PKB (na osobę) a samobójstwami na 100k mieszkańców",
+         xaxis = list(title = "PKB (na osobę)"),
+         yaxis = list(title = "Samobójstwa na 100k mieszkańców"),
+         legend = list(title = list(text = "Kontynent"))) 
+```
+
+```{r}
+#| include: false
+
+#Wybranie danych
+country_mean_gdp <- Dataset %>%
+  group_by(country, continents) %>%
+  summarize(
+    suicide_capita = (sum(as.numeric(suicides_no), na.rm = TRUE) / sum(as.numeric(population), na.rm = TRUE)) * 100000, 
+    gdp_per_capita = mean(gdp_per_capita, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+#Model regresji
+model1 <- lm(suicide_capita ~ gdp_per_capita, data = country_mean_gdp)
+
+#Usunięcie outlierów za pomocą miary wpływu (odległość Cooka)
+gdp_suicide_no_outliers <- model1 %>%
+  augment() %>%
+  arrange(desc(.cooksd)) %>%
+  filter(.cooksd < 4 / nrow(.)) %>%  #usunięcie outlierów
+  inner_join(country_mean_gdp, by = c("suicide_capita", "gdp_per_capita")) %>%
+  select(country, continents, gdp_per_capita, suicide_capita)
+
+#Model regresji bez outlierów
+model2 <- lm(suicide_capita ~ gdp_per_capita, data = gdp_suicide_no_outliers)
+
+#Podsumowanie modeli
+summary(model1)
+summary(model2)
+
+```
+
+Wykres ilustruje zależność między PKB na osobę a liczbą samobójstw na 100 tysięcy mieszkańców, uwzględniając linię trendu. Widoczna jest delikatnie dodatnia korelacja – wyższe PKB na osobę jest związane z nieco wyższą liczbą samobójstw, jednak związek ten jest słaby, co wskazuje na inne istotne czynniki wpływające na ten problem.
+
+Różnice regionalne są wyraźne: w Afryce i Ameryce Południowej liczba samobójstw pozostaje stosunkowo niska przy niższym PKB, podczas gdy Europa i Oceania prezentują większe zróżnicowanie, z krajami o wyższym PKB i relatywnie wysokiej liczbie samobójstw.
+
+```{r}
+
+#Wizualizacja korelacji
+
+ggplot(gdp_suicide_no_outliers, aes(x = gdp_per_capita, y = suicide_capita, col = continents)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", aes(group = 1)) + 
+  labs(title = "Korelacja między PKB (na osobę) a samobójstwami na 100k", 
+  x = "PKB (na osobę)", 
+  y = "Samobójstwa na 100k", 
+  col = "Kontynent") 
+
+
+```
+
+## HDI a samobójstwa: wyższy rozwój, niższe ryzyko?
+
+Widać słabą dodatnią korelację – wyższy HDI wiąże się z wyższą liczbą samobójstw.
+
+Kraje o niskim HDI (poniżej 0,7) mają w większości niskie wskaźniki samobójstw, natomiast kraje o wysokim HDI (powyżej 0,8) charakteryzują się większym zróżnicowaniem, z liczbą samobójstw sięgającą nawet powyżej 30 na 100 tys. mieszkańców. Europa wyróżnia się dużą liczbą krajów o wysokim HDI i wyższym wskaźniku samobójstw, podczas gdy Afryka i Ameryka Południowa cechują się niskim HDI i niskimi wartościami liczby samobójstw.
+
+Liniowy trend wskazuje na delikatny wzrost liczby samobójstw wraz ze wzrostem HDI, jednak szeroki przedział ufności sugeruje, że związek ten nie jest silny i mogą na niego wpływać inne czynniki, takie jak różnice kulturowe i regionalne.
+
+```{r}
+#| include: false
+ 
+#Wybranie danych
+country_mean_hdi <- Dataset %>%
+  group_by(country, continents) %>%
+  summarize(
+    suicide_capita = (sum(as.numeric(suicides_no), na.rm = TRUE) / sum(as.numeric(population), na.rm = TRUE)) * 100000, 
+    hdi = mean(HDI.for.year, na.rm = TRUE),
+    .groups = "drop"  
+  )
+
+# Model regresji
+model1 <- lm(suicide_capita ~ hdi, data = country_mean_hdi)
+
+hdi_suicide_no_outliers <- model1 %>%
+  augment() %>%
+  arrange(desc(.cooksd)) %>%
+  filter(.cooksd < 4 / nrow(.)) %>% 
+  inner_join(country_mean_hdi, by = c("suicide_capita", "hdi")) %>%
+  select(country, continents, hdi, suicide_capita)
+
+model2 <- lm(suicide_capita ~ hdi, data = hdi_suicide_no_outliers)  # Zmieniamy 'gdp_per_capita' na 'hdi'
+
+summary(model1)
+summary(model2)
+
+```
+
+```{r}
+
+#Wizualizacja korelacji
+
+ggplot(hdi_suicide_no_outliers, aes(x = hdi, y = suicide_capita, col = continents)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", aes(group = 1)) + 
+  labs(title = "Korelacja między HDI a samobójstwami na 100k", 
+       x = "HDI", 
+       y = "Samobójstwa na 100k", 
+       col = "Kontynent") 
+```
+
+```{r}
+#| include: false
+
+#Wybranie danych
+Dataset_summary <- Dataset %>%
+  group_by(country, year, sex, generation, age) %>%
+  summarise(
+    total_suicides = sum(suicides_no, na.rm = TRUE),
+    suicide_capita = round((sum(suicides_no, na.rm = TRUE) / sum(population, na.rm = TRUE)) * 100000, 2),
+    .groups = "drop"
+  )
+
+#Inderfejs
+ui <- fluidPage(
+  titlePanel("Analiza Samobójstw"),
+  
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("selected_country", "Wybierz kraj:", choices = unique(Dataset_summary$country), selected = "Polska"),
+      uiOutput("year_ui")  #Suwak
+    ),
+    
+    mainPanel(
+      tabsetPanel(
+        tabPanel("Samobójstwa wg płci", plotlyOutput("gender_plot")),
+        tabPanel("Samobójstwa wg generacji", plotlyOutput("generation_plot")),
+        tabPanel("Samobójstwa wg wieku", plotlyOutput("age_plot"))
+      )
+      
+    )
+  )
+)
+
+#Serwer
+server <- function(input, output, session) {
+  
+  #Zmienna przechowująca dane dla wybranego kraju
+  filtered_data <- reactive({
+    Dataset_summary %>%
+      filter(country == input$selected_country)
+  })
+  
+  #Generwoanie suwaka dla lat
+  output$year_ui <- renderUI({
+    data <- filtered_data()
+    min_year <- min(data$year)
+    max_year <- max(data$year)
+    
+    sliderInput("selected_year", "Wybierz rok:", min = min_year, max = max_year, 
+                value = max_year, step = 1, sep="")
+  })
+  
+  #Wykres samobójstw wg płci
+  output$gender_plot <- renderPlotly({
+    data <- filtered_data() %>%
+      filter(year == input$selected_year) %>%
+      group_by(sex) %>%
+      summarise(total_suicides = sum(total_suicides), suicide_capita = sum(suicide_capita), .groups = "drop")
+    
+    plot <- ggplot(data, aes(x = sex, y = suicide_capita, fill = sex)) +
+      geom_bar(stat = "identity") +
+      labs(title = paste("Samobójstwa wg płci w", input$selected_year, "w", input$selected_country),
+           x = "Płeć", y = "Samobójstwa na 100 000 mieszkańców") +
+      scale_fill_manual(values = myPalette) +
+      theme_minimal()
+    
+    ggplotly(plot, tooltip = "y") 
+  })
+  
+  #Wykres samobójstw wg generacji
+  output$generation_plot <- renderPlotly({
+    data <- filtered_data() %>%
+      filter(year == input$selected_year) %>%
+      group_by(generation) %>%
+      summarise(total_suicides = sum(total_suicides), suicide_capita = sum(suicide_capita), .groups = "drop")
+    
+    plot <- ggplot(data, aes(x = generation, y = suicide_capita, fill = generation)) +
+      geom_bar(stat = "identity") +
+      labs(title = paste("Samobójstwa wg generacji w", input$selected_year, "w", input$selected_country),
+           x = "Generacja", y = "Samobójstwa na 100 000 mieszkańców") +
+      scale_fill_manual(values = myPalette) +
+      theme_minimal()+
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    
+    ggplotly(plot, tooltip = "y")
+  })
+  
+  # Wykres samobójstw wg wieku
+  output$age_plot <- renderPlotly({
+    data <- filtered_data() %>%
+      filter(year == input$selected_year) %>%
+      group_by(age) %>%
+      summarise(total_suicides = sum(total_suicides), suicide_capita = sum(suicide_capita), .groups = "drop")
+    
+    plot <- ggplot(data, aes(x = age, y = suicide_capita, fill = age)) +
+      geom_bar(stat = "identity") +
+      labs(title = paste("Samobójstwa wg wieku w", input$selected_year, "w", input$selected_country),
+           x = "Wiek", y = "Samobójstwa na 100 000 mieszkańców") +
+      scale_fill_manual(values = myPalette) +
+      theme_minimal()+
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    
+    ggplotly(plot, tooltip = "y")
+  })
+}
+
+shinyApp(ui = ui, server = server)
+
+```
+
+# Podsumowanie
+
+Przeprowadzona analiza zależności między wskaźnikami samobójstw a czynnikami demograficznymi oraz gospodarczo-społecznymi wskazuje na złożoną interakcję różnych zmiennych wpływających na ten problem. Wyniki potwierdzają, że płeć, wiek oraz generacja mają istotny wpływ na liczbę samobójstw, a także wskazują na znaczną regionalną różnorodność.
+
+Po pierwsze, mężczyźni wykazują znacznie wyższe wskaźniki samobójstw niż kobiety we wszystkich analizowanych grupach wiekowych, co jest szczególnie widoczne w starszych pokoleniach. Starsze grupy wiekowe, zwłaszcza osoby powyżej 75. roku życia, mają najwyższe wskaźniki samobójstw, co może być związane z problemami typowymi dla zaawansowanego wieku, takimi jak samotność, choroby przewlekłe i brak wsparcia społecznego. Współczesny kult młodości, problemy zdrowotne oraz trudności finansowe zwiększają ryzyko samobójstw wśród seniorów. Młodsze grupy wiekowe, takie jak 15-34 lata, mają niższe wskaźniki samobójstw, ale wyzwania związane z presją społeczną, edukacją i karierą zawodową są nadal obecne.
+
+Analiza wykazała także znaczące różnice w liczbie samobójstw w zależności od regionu geograficznego. Najwyższe wskaźniki samobójstw występują w Europie Wschodniej oraz niektórych krajach Ameryki Południowej i Północnej, natomiast najniższe wartości odnotowano w Afryce i na Bliskim Wschodzie.
+
+Ponadto, analiza wskazuje na słabą, dodatnią korelację między wskaźnikami samobójstw a poziomem PKB na osobę oraz HDI, jednak różnice regionalne oraz inne czynniki, takie jak struktura społeczna i dostępność wsparcia psychologicznego, mogą mieć równie duży wpływ na wyniki.
+
+Wyniki tej analizy podkreślają konieczność dostosowania polityk prewencyjnych, wsparcia psychologicznego oraz działań edukacyjnych do specyfiki regionalnej, demograficznej i gospodarczej poszczególnych krajów. Przeciwdziałanie samobójstwom wymaga zatem uwzględnienia szerokiego kontekstu społecznego, ekonomicznego i kulturowego.
+
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------+
+| Lista bezpłatnych numerów pomocowych                                                                                                                                                                                   | Całodobowe bezpłatne numery pomocowe                                                  |
++:=======================================================================================================================================================================================================================+:======================================================================================+
+| Wsparcie dla osób po stracie bliskich (będących w żałobie)\                                                                                                                                                            | Centrum Wsparcia dla Osób Dorosłych w Kryzysie Psychicznym\                           |
+| [800 108 108](https://naglesami.org.pl/telefon-wsparcia.html/)\                                                                                                                                                        | [800 702 222](https://centrumwsparcia.pl)\                                            |
+| Czynny od poniedziałku do piątku od 14:00 do 20:00                                                                                                                                                                     |                                                                                       |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------+
+| Telefon zaufania dla mężczyzn\                                                                                                                                                                                         | Telefon wsparcia emocjonalnego dla dorosłych\                                         |
+| [608 271 402](#0)\                                                                                                                                                                                                     | [116 123](https://psychologia.edu.pl/kryzysy-osobiste/telefon-kryzysowy-116123.html)\ |
+| Czynny we wtorki od 17:00 do 19:00 oraz czwartki od 19:00 do 21:00                                                                                                                                                     |                                                                                       |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------+
+| Telefon zaufania „Uzależniania behawioralne”\                                                                                                                                                                          | Ogólnopolski telefon dla ofiar przemocy w rodzinie „Niebieska Linia”\                 |
+| [801 889 880](https://uzaleznieniabehawioralne.pl/archiwum-aktualnosci/telefon-zaufania-dla-osob-uzaleznionych-od-czynnosci/)\                                                                                         | [800 120 002](https://www.niebieskalinia.info/index.php/oferta/29-oferta)\            |
+| Czynny codziennie od 17:00 do 22:00                                                                                                                                                                                    |                                                                                       |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------+
+| Telefon Pogadania\                                                                                                                                                                                                     | Telefon zaufania dla dzieci i młodzieży\                                              |
+| [800 012 005](https://telefonpogadania.pl)\                                                                                                                                                                            | [116 111](#0)\                                                                        |
+| Czynny od poniedziałku do piątku od 14:00 do 20:00                                                                                                                                                                     |                                                                                       |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------+
+| Bezpłatny telefon kryzysowy Polskiego Forum Migracyjnego w języku ukraińskim i rosyjskim\                                                                                                                              | Dziecięcy Telefon Zaufania Rzecznika Praw Dziecka\                                    |
+| [669 981 038](https://www.onet.pl/?utm_source=zwjr.pl_viasg_medonet&utm_medium=referal&utm_campaign=leo_automatic&pid=891f33d7-b5c1-47d2-a0a1-d25efb526289&sid=4c699da5-8069-4230-a719-c2723c58fbf2&utm_v=2&mp=promo)\ | [800 121 212](#0)\                                                                    |
+| Czynny w poniedziałki od 16:00 do 20:00, środy od 10:00 do 14:00 oraz piątki od 14:00 do 18:00                                                                                                                         |                                                                                       |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------+
+| Bezpłatny telefon wsparcia Centrum Medycznego Damiana w języku polskim i rosyjskim\                                                                                                                                    |                                                                                       |
+| [22 566 22 27](Czynny%20we%20wtorki%20od%208:00%20do%2013:00,%20środy%20od%2017:00%20do%2020:00,%20oraz%20piątki%20od%208:00%20do%2013:00)\                                                                            |                                                                                       |
+| Czynny od poniedziałku do piątku od 14:00 do 20:00                                                                                                                                                                     |                                                                                       |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------+
+| Antydepresyjny telefon zaufania\                                                                                                                                                                                       |                                                                                       |
+| [22 484 88 01](https://stopdepresji.pl)\                                                                                                                                                                               |                                                                                       |
+| Czynny od poniedziałku do piątku od 15:00 do 20:00                                                                                                                                                                     |                                                                                       |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------+
+
+: źródło: <https://zwjr.pl/bezplatne-numery-pomocowe>
+
+# Źródła
+
+1.  <https://zwjr.pl>
+2.  <https://www.termedia.pl/mz/Wiekszosc-samobojcow-to-mezczyzni%2C52432.html>
+3.  [https://www.psychiatria.com.pl/index.php/issues/2015-vol-15-no-4/samobojstwa-wsrod-osob-starszych?utm_source=chatgpt](https://www.psychiatria.com.pl/index.php/issues/2015-vol-15-no-4/samobojstwa-wsrod-osob-starszych?utm_source=chatgpt.com)[-problem](https://www.mp.pl/pacjent/psychiatria/aktualnosci/277169,samobojstwa-po-60-roku-zycia-ukryty-problem)
+4.  <https://kwartalnik.csp.edu.pl/kp/archiwum-1/2024/kwartalnik-policyjny-nr-12024/5739%2CZrozumiec-aby-zapobiec-2024-Zachowania-samobojcze-wsrod-dzieci-i-mlodziezy-II-ed.html>
+5.  <https://fundacjagap.pl/wp-content/uploads/2021/03/Problemy-społeczne-XXI-wieku.pdf>
