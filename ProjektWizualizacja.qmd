@@ -369,7 +369,7 @@ Lata urodzeń poszczególnych grup pokoleniowych:
 
 -   Pokolenie Z (1997–2012)
 
-Analiza wykresów pokazuje, że najwyższe wskaźniki samobójstw występowały wśród G.I. Generation (23,99) i Silent Generation (19,32), szczególnie w grupach wiekowych 75+ lat. Najniższe wartości odnotowano wśród Generation Z, co wynika z młodego wieku tej grupy. Mężczyźni mają znacznie wyższe wskaźniki samobójstw niż kobiety we wszystkich generacjach, zwłaszcza w starszych. Samobójstwa są też bardziej powszechne w starszych generacjach i wśród mężczyzn, a młodsze pokolenia charakteryzują się niższymi wskaźnikami z uwagi na krótszy czas obserwacji.
+Analiza wykresów pokazuje, że najwyższe wskaźniki samobójstw występowały wśród G.I. Generation (23,99) i Silent Generation (19,32), szczególnie w grupach wiekowych 75+ lat. Najniższe wartości odnotowano wśród Generation Z, co wynika z młodego wieku tej grupy. Samobójstwa są też bardziej powszechne w starszych generacjach, głównie wśród mężczyzn, natomiast młodsze pokolenia charakteryzują się niższymi wskaźnikami z uwagi na krótszy czas obserwacji.
 
 ```{r}
 #Wybranie danych
@@ -667,7 +667,7 @@ plot_ly(
 
 ## Kraje i wpływ wieku na samobójstwa
 
-Najwyższe wartości dotyczą przede wszystkim krajów Europy Wschodniej, takich jak Litwa, Rosja czy Białoruś, a także Sri Lanki. Najbardziej narażoną grupą wiekową są osoby starsze (75+), co wskazuje na szczególne wyzwania w zakresie wsparcia seniorów. W niektórych krajach, jak Sri Lanka i Kazachstan, zauważono także stosunkowo wysokie wskaźniki wśród młodszych grup wiekowych (25-34 lata). Kraje o niskich wskaźnikach, takie jak Jamajka, Malediwy czy Kuwejt, wyróżniają się znacznie niższym zagrożeniem w każdej grupie wiekowej. Wyniki podkreślają potrzebę dostosowania działań profilaktycznych do specyfiki regionalnej oraz wieku populacji.
+Najwyższe wartości dotyczą przede wszystkim krajów Europy Wschodniej, takich jak Litwa, Rosja czy Białoruś, ale także Sri Lanki. Najbardziej narażoną grupą wiekową są osoby starsze (75+), co wskazuje na szczególne wyzwania w zakresie wsparcia seniorów. W niektórych krajach, jak Sri Lanka i Kazachstan, zauważono także stosunkowo wysokie wskaźniki wśród młodszych grup wiekowych (25-34 lata). Kraje o niskich wskaźnikach, takie jak Jamajka, Malediwy czy Kuwejt, wyróżniają się znacznie niższym zagrożeniem w każdej grupie wiekowej. Wyniki podkreślają potrzebę dostosowania działań profilaktycznych do specyfiki regionalnej oraz wieku.
 
 ```{r}
 #Wybranie danych
