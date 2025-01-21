@@ -14,6 +14,8 @@ warning: false
 message: false
 ---
 
+
+
 # Wprowadzenie do tematu
 
 Problem samobójstw jest jednym z najpoważniejszych wyzwań społecznych i zdrowotnych na całym świecie. By zidentyfikować grupy szczególnie narażone trzeba przyjrzeć się czynnikom takim jak rozwój gospodarczy, poziom życia czy struktura demograficzna. Celem projektu jest zbadanie zależności między wskaźnikiem samobójstw a różnorodnymi czynnikami demograficznymi, takimi jak wiek, płeć i przynależność do określonej generacji, oraz gospodarczymi, w tym PKB per capita i poziomem rozwoju społecznego (HDI). Analiza obejmuje różne kraje i okresy, a jej wyniki mogą zostać wykorzystane do opracowywania programów prewencyjnych, wsparcia psychologicznego oraz działań edukacyjnych w różnych regionach.
@@ -56,6 +58,8 @@ Projekt bazuje na zestawie danych dostępnych na platformie Kaggle: [Suicides Ra
 
 9.  **suicides_no** - liczba samobójstw
 
+
+
 ```{r}
 
 #Dodanie bibliotek
@@ -91,6 +95,8 @@ head(Dataset, 4) %>%
 
 ```
 
+
+
 # Przygotowanie do analizy
 
 W procesie wstępnego przetwarzania danych wykonano między innymi:
@@ -110,6 +116,8 @@ W procesie wstępnego przetwarzania danych wykonano między innymi:
 5.  Usunięcie roku 2016.
 
 6.  Zamianę niektórych nazw państw.
+
+
 
 ```{r}
 #| include: false
@@ -233,11 +241,15 @@ head(Dataset, 4) %>%
 
 ```
 
+
+
 # Samobójstwa na świecie: globalna perspektywa
 
 ## Zmiana liczby samobójstw w czasie
 
 Analiza liczby samobójstw w poszczególnych latach ukazuje zmienność trendu w czasie. Wzrost w latach 90. może być związany z globalnymi kryzysami, jak recesje ekonomiczne, konflikty społeczne, wojna w Zatoce Perskiej, kryzys w Japonii czy problemy Europejskiego Systemu Walutowego. Napięcia te pogłębiały poczucie niepewności, zwłaszcza w krajach przechodzących transformację gospodarczą po upadku komunizmu. Spadek liczby samobójstw po 1995 roku może wynikać z poprawy sytuacji społeczno-ekonomicznej, wzrostu świadomości na temat zdrowia psychicznego i lepszego wsparcia społecznego. Stabilizacja w regionach dotkniętych kryzysami, np. w Ameryce Łacińskiej po kryzysie meksykańskim, także mogła wpłynąć na te zmiany.
+
+
 
 ```{r}
 #Wybranie danych
@@ -268,9 +280,13 @@ plot_ly(
   )
 ```
 
+
+
 ## Mężczyźni kontra kobiety: kto jest bardziej zagrożony?
 
 Dane wskazują znaczącą dysproporcję między płciami – liczba samobójstw jest zdecydowanie wyższa wśród mężczyzn niż u kobiet. Wynika to prawdopodobnie m.in. z presji społecznej, trudności w przeżywaniu kryzysów emocjonalnych i niechęci do szukania pomocy. Mężczyźni rzadziej diagnozują i leczą depresję, co pogłębia problem, szczególnie w połączeniu z nadużywaniem alkoholu, bezdomnością czy samotnością.
+
+
 
 ```{r}
 
@@ -294,6 +310,8 @@ plot_ly(sex_summary,
   layout(title = "Średnia liczba samobójstw na 100 000 mieszkańców, z podziałem na płeć ")
 ```
 
+
+
 ## Wpływ wieku na statystyki samobójstw
 
 W latach 1985-2015 najwyższy wskaźnik samobójstw odnotowano w grupie wiekowej 75+. Odpowiada ona za 29,3% wszystkich przypadków. Może to być związane z problemami charakterystycznymi dla zaawansowanego wieku, takimi jak samotność, choroby przewlekłe czy brak wsparcia społecznego.
@@ -303,6 +321,8 @@ Istotny odsetek samobójstw dotyczy również grup wiekowych 55-74 lata (22,5%) 
 Młodsze grupy wiekowe, 25-34 lata oraz 15-24 lata, mają mniejsze wskaźniki samobójstw, wynoszące odpowiednio 15,9% i 11,2%. Jednak warto zwrócić uwagę na wyzwania, z jakimi mierzą się młodzi ludzie, takie jak presja społeczna, trudności edukacyjne czy początek kariery zawodowej.
 
 Najniższy odsetek samobójstw odnotowano w grupie dzieci w wieku 5-14 lat, co stanowi zaledwie 0,74%.
+
+
 
 ```{r}
 #Wybranie danych
@@ -324,9 +344,13 @@ plot_ly(age_summary,
 
 ```
 
+
+
 ## Liczba samobójstw ze względu na płeć i wiek
 
 Wykres pokazuje wyraźne różnice w liczbie samobójstw. W każdej analizowanej grupie wiekowej liczba samobójstw jest znacznie wyższa wśród mężczyzn niż wśród kobiet, a różnica ta szczególnie narasta w starszych grupach wiekowych (55–74 lata i 75+ lat). Wskaźniki samobójstw rosną wraz z wiekiem, osiągając najwyższe wartości w grupie osób 75+ lat, co wskazuje na szczególną podatność tej grupy na czynniki prowadzące do samobójstw. Najniższe wartości odnotowano wśród dzieci i młodzieży (5–14 lat), natomiast w grupie mężczyzn istotny szczyt występuje w wieku 35–54 lata.
+
+
 
 ```{r}
 #Wybranie danych
@@ -353,6 +377,8 @@ plot_ly(
 
 ```
 
+
+
 ## Generacje a skłonność do samobójstw
 
 Lata urodzeń poszczególnych grup pokoleniowych:
@@ -370,6 +396,8 @@ Lata urodzeń poszczególnych grup pokoleniowych:
 -   Pokolenie Z (1997–2012)
 
 Analiza wykresów pokazuje, że najwyższe wskaźniki samobójstw występowały wśród G.I. Generation (23,99) i Silent Generation (19,32), szczególnie w grupach wiekowych 75+ lat. Najniższe wartości odnotowano wśród Generation Z, co wynika z młodego wieku tej grupy. Mężczyźni mają znacznie wyższe wskaźniki samobójstw niż kobiety we wszystkich generacjach, zwłaszcza w starszych. Samobójstwa są też bardziej powszechne w starszych generacjach i wśród mężczyzn, a młodsze pokolenia charakteryzują się niższymi wskaźnikami z uwagi na krótszy czas obserwacji.
+
+
 
 ```{r}
 #Wybranie danych
@@ -458,6 +486,8 @@ plot_ly(
   )
 ```
 
+
+
 # Samobójstwa w poszczególnych latach
 
 ## Samobójstwa w podziale na wiek i lata
@@ -465,6 +495,8 @@ plot_ly(
 Współczesny kult młodości sprawia, że osoby starsze, zwłaszcza w dużych miastach, często nie są zauważane, co w połączeniu z samotnością, zakończeniem pracy zawodowej, trudnościami finansowymi i pogarszającym się zdrowiem zwiększa ryzyko samobójstw. W latach 1985-2015 najwyższe wskaźniki samobójstw odnotowano właśnie w grupie 75+, choć po 2000 roku widoczny jest spadek. Grupy 55-74 i 35-54 również wykazują wysokie wartości, ale stabilizują się w ostatnich
 
 Młodsze grupy, takie jak 15-24 i 25-34 lata, mają niższe wskaźniki, a dzieci w wieku 5-14 lat najniższe. Ogólnie widoczna jest tendencja spadkowa we wszystkich grupach wiekowych, co może wynikać z poprawy wsparcia psychologicznego i większej świadomości społecznej.
+
+
 
 ```{r}
 
@@ -494,9 +526,13 @@ plot_ly(
 
 ```
 
+
+
 ## Rok, płeć i statystyki samobójstw
 
 Wskaźnik dla mężczyzn jest znacząco wyższy niż dla kobiet przez cały analizowany okres. Po roku 1995 liczba samobójstw wśród mężczyzn zaczęła spadać, choć nadal pozostaje na wysokim poziomie. W przypadku kobiet wartości są stabilne i znacznie niższe, z lekką tendencją spadkową w ostatnich latach.
+
+
 
 ```{r}
 
@@ -525,11 +561,15 @@ plot_ly(
   )
 ```
 
+
+
 ## Spojrzenie na samobójstwa w poszczególnych latach i grupach wiekowych
 
 Najwyższy wskaźnik obserwowany jest wśród osób powyżej 75. roku życia, chociaż od lat 90. liczba samobójstw w tej grupie systematycznie spada. Wysokie wartości utrzymują się także w grupie wiekowej 55–74 lata.
 
 Dla młodszych grup wiekowych (15–24 oraz 25–34 lata) wskaźnik samobójstw jest stabilny i znacznie niższy, podczas gdy grupa 5–14 lat charakteryzuje się najniższymi wartościami w całym okresie. Ogólnie widoczna jest tendencja spadkowa w starszych grupach wiekowych, przy stabilizacji w młodszych.
+
+
 
 ```{r}
 
@@ -558,6 +598,8 @@ plot_ly(
   )
 ```
 
+
+
 # Mapa samobójstw: kraje pod lupą
 
 ## Historia samobójstw od 1985 do 2015
@@ -565,6 +607,8 @@ plot_ly(
 Największą liczbę samobójstw odnotowano w Europie Wschodniej, szczególnie w krajach byłego ZSRR, oraz w niektórych krajach Ameryki Południowej i Północnej. Może wynikać ona z głębokiego poczucia beznadziei i alienacji, które są skutkiem trudnych doświadczeń historycznych, traumy pokoleniowej i silnie zakorzenionego alkoholizmu.
 
 Z kolei najniższe wartości odnotowano w regionach Afryki i na Bliskim Wschodzie. Różnice te mogą wynikać z odmiennych uwarunkowań kulturowych, społecznych oraz ekonomicznych.
+
+
 
 ```{r}
 #Dane geograficzne
@@ -620,9 +664,13 @@ leaflet(data = map_data_sp) %>%
 
 ```
 
+
+
 ## Płeć a lokalizacja geograficzna
 
 W większości krajów odsetek samobójstw wśród mężczyzn jest znacznie wyższy niż wśród kobiet. Najwyższe wskaźniki samobójstw wśród mężczyzn odnotowano w krajach takich jak Litwa, Rosja i Białoruś, co wskazuje na szczególnie wysokie ryzyko w tych regionach. Natomiast kraje na karaibach, takie jak Dominika czy Saint Kitts i Nevis, charakteryzują się zerowym zachowaniem samobójczym w przeliczeniu na 100 tys. mieszkańców. Warto również zwrócić uwagę, że różnice między płciami są widoczne we wszystkich krajach,
+
+
 
 ```{r}
 #Wybranie danych
@@ -665,9 +713,13 @@ plot_ly(
   )
 ```
 
+
+
 ## Kraje i wpływ wieku na samobójstwa
 
 Najwyższe wartości dotyczą przede wszystkim krajów Europy Wschodniej, takich jak Litwa, Rosja czy Białoruś, a także Sri Lanki. Najbardziej narażoną grupą wiekową są osoby starsze (75+), co wskazuje na szczególne wyzwania w zakresie wsparcia seniorów. W niektórych krajach, jak Sri Lanka i Kazachstan, zauważono także stosunkowo wysokie wskaźniki wśród młodszych grup wiekowych (25-34 lata). Kraje o niskich wskaźnikach, takie jak Jamajka, Malediwy czy Kuwejt, wyróżniają się znacznie niższym zagrożeniem w każdej grupie wiekowej. Wyniki podkreślają potrzebę dostosowania działań profilaktycznych do specyfiki regionalnej oraz wieku populacji.
+
+
 
 ```{r}
 #Wybranie danych
@@ -799,11 +851,15 @@ shinyApp(ui = ui, server = server)
 
 ```
 
+
+
 # Kontynenty w świetle statystyk
 
 ## Samobójstwa: spojrzenie globalne i regionalne
 
 Wskaźniki samobójstw wykazują znaczne różnice w zależności od kontynentu. Najwyższe wartości samobójstw odnotowano na kontynentach rozwiniętych gospodarczo, co może wskazywać na złożony wpływ stresu związanego z wysokim tempem życia i oczekiwaniami społecznymi. Z kolei w regionach o silniejszych więziach społecznych i tradycyjnych strukturach rodzinnych wskaźniki są zauważalnie niższe.
+
+
 
 ```{r}
 
@@ -881,11 +937,15 @@ leaflet(continents_sf) %>%
 
 ```
 
+
+
 ## Płeć i kontynenty
 
 Najwyższy wskaźnik samobójstw wśród mężczyzn odnotowano w Europie, gdzie liczba samobójstw wynosi ponad 30 na 100 000 mieszkańców, co znacząco przewyższa wyniki z innych regionów. Dla porównania, wskaźnik dla kobiet w Europie to około 5 na 100 000 mieszkańców.
 
 Podobne tendencje można zaobserwować w Azji, Oceanii i Ameryce Północnej, gdzie wskaźniki samobójstw wśród mężczyzn są również kilkukrotnie wyższe niż wśród kobiet. Najniższe wskaźniki dotyczą Afryki
+
+
 
 ```{r}
 #Wybranie danych
@@ -912,6 +972,8 @@ plot_ly(
   )
 ```
 
+
+
 ## Generacje w różnych regionach świata
 
 Dane ujawniają, że najwyższy wskaźnik samobójstw występuje w grupie wiekowej 75+ lat, szczególnie w Europie i Oceanii, gdzie wartości przekraczają 25 przypadków na 100 000 mieszkańców. Wysokie wskaźniki dotyczą także grupy wiekowej 55–74 lata, szczególnie w tych samych regionach.
@@ -919,6 +981,8 @@ Dane ujawniają, że najwyższy wskaźnik samobójstw występuje w grupie wiekow
 W młodszych grupach wiekowych, takich jak 15–24 oraz 25–34 lata, wskaźniki są wyraźnie niższe, jednak nadal zauważalne, zwłaszcza w Europie, Azji i Oceanii. Grupa wiekowa 5–14 lat wykazuje minimalną liczbę samobójstw we wszystkich kontynentach, co sugeruje, że samobójstwa w tej grupie wiekowej są rzadkie.
 
 Te dane wskazują, że ryzyko samobójstw wzrasta wraz z wiekiem, osiągając szczyt w najstarszych grupach wiekowych.
+
+
 
 ```{r}
 #Wybranie danych
@@ -946,9 +1010,13 @@ plot_ly(
 
 ```
 
+
+
 Wyniki pokazują, że najwyższe wskaźniki dotyczą starszych generacji, takich jak G.I. Generation i Silent Generation, szczególnie w Europie i Azji, gdzie wartości przekraczają 30 przypadków na 100 000 mieszkańców.
 
 Młodsze generacje, takie jak Millenials i Generation Z, cechują się znacznie niższymi wskaźnikami, jednak w niektórych regionach, takich jak Oceania i Europa, nadal obserwuje się zauważalne wartości. Generacja X i Boomers wykazują zróżnicowane wyniki, które wskazują na pośredni poziom ryzyka między starszymi a młodszymi generacjami.
+
+
 
 ```{r}
 #Wybranie danych
@@ -976,6 +1044,8 @@ plot_ly(
 
 ```
 
+
+
 # Czynniki ekonomiczne - wpływ na samobójstwa
 
 ## PKB i liczba samobójstw: analiza zależności
@@ -983,6 +1053,8 @@ plot_ly(
 Można zauważyć, że kraje o niższym PKB na osobę (poniżej 20 tys. USD) charakteryzują się znaczną rozbieżnością w liczbie samobójstw – zarówno bardzo niskimi wskaźnikami, jak i wysokimi (do około 30-40 na 100 tys. mieszkańców). Natomiast w przypadku krajów o wyższym PKB (powyżej 40 tys. USD), widoczna jest tendencja do utrzymywania się liczby samobójstw na niższym poziomie, poniżej 15 na 100 tys. mieszkańców.
 
 Podział na kontynenty pokazuje, że Europa ma największą liczbę krajów o wysokim wskaźniku samobójstw, niezależnie od PKB. W regionach takich jak Afryka czy Ameryka Południowa dominują niskie wartości zarówno PKB, jak i liczby samobójstw. Wykres sugeruje, że wysoki dochód na osobę niekoniecznie wiąże się z wyższą liczbą samobójstw.
+
+
 
 ```{r}
 #Wybranie danych
@@ -1037,9 +1109,13 @@ summary(model2)
 
 ```
 
+
+
 Wykres ilustruje zależność między PKB na osobę a liczbą samobójstw na 100 tysięcy mieszkańców, uwzględniając linię trendu. Widoczna jest delikatnie dodatnia korelacja – wyższe PKB na osobę jest związane z nieco wyższą liczbą samobójstw, jednak związek ten jest słaby, co wskazuje na inne istotne czynniki wpływające na ten problem.
 
 Różnice regionalne są wyraźne: w Afryce i Ameryce Południowej liczba samobójstw pozostaje stosunkowo niska przy niższym PKB, podczas gdy Europa i Oceania prezentują większe zróżnicowanie, z krajami o wyższym PKB i relatywnie wysokiej liczbie samobójstw.
+
+
 
 ```{r}
 
@@ -1056,6 +1132,8 @@ ggplot(gdp_suicide_no_outliers, aes(x = gdp_per_capita, y = suicide_capita, col 
 
 ```
 
+
+
 ## HDI a samobójstwa: wyższy rozwój, niższe ryzyko?
 
 Widać słabą dodatnią korelację – wyższy HDI wiąże się z wyższą liczbą samobójstw.
@@ -1063,6 +1141,8 @@ Widać słabą dodatnią korelację – wyższy HDI wiąże się z wyższą licz
 Kraje o niskim HDI (poniżej 0,7) mają w większości niskie wskaźniki samobójstw, natomiast kraje o wysokim HDI (powyżej 0,8) charakteryzują się większym zróżnicowaniem, z liczbą samobójstw sięgającą nawet powyżej 30 na 100 tys. mieszkańców. Europa wyróżnia się dużą liczbą krajów o wysokim HDI i wyższym wskaźniku samobójstw, podczas gdy Afryka i Ameryka Południowa cechują się niskim HDI i niskimi wartościami liczby samobójstw.
 
 Liniowy trend wskazuje na delikatny wzrost liczby samobójstw wraz ze wzrostem HDI, jednak szeroki przedział ufności sugeruje, że związek ten nie jest silny i mogą na niego wpływać inne czynniki, takie jak różnice kulturowe i regionalne.
+
+
 
 ```{r}
 #| include: false
@@ -1216,6 +1296,8 @@ shinyApp(ui = ui, server = server)
 
 ```
 
+
+
 # Podsumowanie
 
 Przeprowadzona analiza zależności między wskaźnikami samobójstw a czynnikami demograficznymi oraz gospodarczo-społecznymi wskazuje na złożoną interakcję różnych zmiennych wpływających na ten problem. Wyniki potwierdzają, że płeć, wiek oraz generacja mają istotny wpływ na liczbę samobójstw, a także wskazują na znaczną regionalną różnorodność.
@@ -1269,3 +1351,4 @@ Wyniki tej analizy podkreślają konieczność dostosowania programów prewencyj
 3.  [https://www.psychiatria.com.pl/index.php/issues/2015-vol-15-no-4/samobojstwa-wsrod-osob-starszych?utm_source=chatgpt](https://www.psychiatria.com.pl/index.php/issues/2015-vol-15-no-4/samobojstwa-wsrod-osob-starszych?utm_source=chatgpt.com)[-problem](https://www.mp.pl/pacjent/psychiatria/aktualnosci/277169,samobojstwa-po-60-roku-zycia-ukryty-problem)
 4.  <https://kwartalnik.csp.edu.pl/kp/archiwum-1/2024/kwartalnik-policyjny-nr-12024/5739%2CZrozumiec-aby-zapobiec-2024-Zachowania-samobojcze-wsrod-dzieci-i-mlodziezy-II-ed.html>
 5.  <https://fundacjagap.pl/wp-content/uploads/2021/03/Problemy-społeczne-XXI-wieku.pdf>
+
