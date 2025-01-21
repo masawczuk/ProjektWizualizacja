@@ -28,7 +28,7 @@ Kluczowe pytania:
 
 Hipotezy:
 
--    Zakłada się, że mężczyźni mają wyższe wskaźniki samobójstw niż kobiety, zwłaszcza w młodszych grupach wiekowych.
+-   Zakłada się, że mężczyźni mają wyższe wskaźniki samobójstw niż kobiety, zwłaszcza w młodszych grupach wiekowych.
 
 -   Przewiduje się, że kraje o niższym poziomie rozwoju społecznego i gospodarczego, mierzonego za pomocą HDI i PKB per capita, cechują się wyższymi wskaźnikami samobójstw.
 
